@@ -6,7 +6,9 @@ Install requirements:
 $ pip install -r requirements.txt
 ```
 Install gecko driver:
+
 Download and unpack: https://github.com/mozilla/geckodriver/releases
+
 Then run from directory:
 ```sh
 $ sudo mv geckodriver /usr/bin
