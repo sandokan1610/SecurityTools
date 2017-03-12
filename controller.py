@@ -19,7 +19,7 @@ class Controller:
         self.model.scan_social(self.view.inp('Please input person initials.\n'))
 
     def exit_program(self):
-        self.view.pb_output('Program is closed. Have a nice day!')
+        self.view.output('Program is closed. Have a nice day!')
         exit()
 
     def session(self):
@@ -35,7 +35,7 @@ class Controller:
         try:
             self.actions[command]()
         except Exception as e:
-            raise e # debug
+            # raise e # debug
             return self.view.output('Wrong command: {}'.format(e))
 
 if __name__ == '__main__':
