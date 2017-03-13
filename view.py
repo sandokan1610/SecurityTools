@@ -1,3 +1,5 @@
+import pandas.io.sql as pdsql
+
 class View:
     @staticmethod
     def output(text):
@@ -18,6 +20,11 @@ class View:
         for x in res:
             print('{} {} - https://www.linkedin.com/in/{}/'
                   .format(x.get('firstName', ''), x.get('lastName', 'Участник Linkedin'), x['publicIdentifier']))
+
+    @staticmethod
+    def show_sql(query, conn, name):
+        print("######################## {} ########################".format(name.upper()))
+        print(pdsql.read_sql_query(query, conn))
 
     @staticmethod
     def inp(text):

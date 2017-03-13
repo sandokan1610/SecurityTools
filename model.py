@@ -10,9 +10,21 @@ import vk_requests
 import facebook
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+import mysql.connector
+import pymssql
 
 from view import View
 from data_manager import DataManager
+
+EMPLOYEES_DATA = ({'city_id': 1, 'first_name': 'Vadim', 'last_name': 'Kuznetsov', 'phone_number': '0101'},
+                  {'city_id': 2, 'first_name': 'Ivan', 'last_name': 'Petrov', 'phone_number': '102'},
+                  {'city_id': 3, 'first_name': 'Petr', 'last_name': 'Ivanovich', 'phone_number': '102'},
+                  )
+
+CITY_DATA = ({'name': 'Kiev', 'population': 2900920},
+             {'name': 'Kharkov', 'population': 1430885},
+             {'name': 'Odessa', 'population': 1016515},
+             )
 
 
 class Model:
@@ -23,6 +35,11 @@ class Model:
         if os.path.exists('credentials.json'):
             with open('credentials.json', 'r') as file:
                 self.credentials = json.loads(file.read())
+        self.mysql_conn = mysql.connector.connect(user='root', password=' ', host='127.0.0.1', database='test')
+        self.mysql_cursor = self.mysql_conn.cursor()
+        self.mysql_prepare()
+        self.mssql_conn = pymssql.connect('localhost', 'SA', '*328195674q', 'test')
+        self.mssql_cursor = self.mssql_conn.cursor()
 
     @staticmethod
     def check_host(host):
@@ -32,11 +49,16 @@ class Model:
         except socket.gaierror:
             return False
 
-    def scan_dnsmap(self, host):
+    def scan_remote_host(self, host):
+        start = time.time()
+        subdomains = self.scan_remote_host_dnsmap(host)
+        self.scan_remote_host_nmap(subdomains)
+        return 'completion time: {} second(s)'.format(round(time.time() - start, 2))
+
+    def scan_remote_host_dnsmap(self, host):
         if not self.check_host(host):
             return 'Wrong host: "{}"'.format(host)
         self.view.output('Scanning for subdomains...')
-        start = time.time()
         os.system('dnsmap {} >> dnsmap.txt'.format(host))
         with open('dnsmap.txt') as f:
             dnsmap_scan = f.read()
@@ -45,15 +67,21 @@ class Model:
         subdomains = re.findall(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", dnsmap_scan)
         if '127.0.0.1' in subdomains:
             del subdomains[subdomains.index('127.0.0.1')]
-        self.scan_nmap(subdomains, start)
+        return subdomains
 
-    def scan_nmap(self, subdomains, start):
+    def scan_remote_host_nmap(self, subdomains):
         self.view.output('Scanning founded subdomains...')
         for inx, subdomain in enumerate(subdomains, 1):
-            self.scanner.scan(subdomain, '22-443', "-sV -O -A")
-            self.dm.save_csv(self.scanner, subdomain)
+            self.scanner.scan(subdomain, '22-443', '-sV -A')
+            self.dm.save_csv(self.scanner, subdomain, 'remote_host')
             self.view.output('{}% completed...'.format(round(inx / len(subdomains) * 100)))
-        return 'completion time: {} second(s)'.format(round(time.time() - start, 2))
+        else:
+            self.view.output('Scan results saved to: "{}"'.format(self.dm.file_path.format('remote_host')))
+
+    def scan_network(self, network):
+        self.view.output('Scanning network...')
+        self.scanner.scan(network or '192.168.1.0/24', arguments='-A')
+        return self.dm.save_csv_device(self.scanner, 'devices')
 
     def scan_social(self, query):
         if not hasattr(self, 'credentials'):
@@ -86,6 +114,7 @@ class Model:
             graph = facebook.GraphAPI(self.credentials['fb_user_token'])
             extend_token = graph.extend_access_token(self.credentials['fb_app_id'],
                                                      self.credentials['fb_app_secret'])
+            self.credentials["fb_extended_user_token"] = extend_token['access_token']
             with open('credentials.json', 'w') as outfile:
                 json.dump(self.credentials, outfile, indent=4)
             return extend_token['access_token']
@@ -110,7 +139,6 @@ class Model:
         if not self.credentials['ld_login'] or not self.credentials['ld_pass']:
             return self.view.output('Linkedin credentials not founded')
         browser = webdriver.Firefox()
-        browser.set_page_load_timeout(30)
 
         browser.get('https://www.linkedin.com/')
 
@@ -134,3 +162,35 @@ class Model:
                 search = [person for person in metadata['included']
                           if 'publicIdentifier' in person and person['$deletedFields']]
                 return self.view.output_ld(search)
+
+    @staticmethod
+    def check_fields(first_name, last_name, phone_number):
+        if not (first_name and last_name and phone_number):
+            return 'All fields must be filled.'
+        if not first_name.isalpha() or not last_name.isalpha():
+            return 'Name must be a string.'
+        if not phone_number.isdigit():
+            return 'Phone number must be an integer.'
+
+    def mysql_prepare(self):
+        self.mysql_cursor.execute("DROP TABLE IF EXISTS city_test_1, employees_test_1;")
+
+        self.mysql_cursor.execute("CREATE TABLE city_test_1 (id INTEGER AUTO_INCREMENT PRIMARY KEY, "
+                                  "name CHAR(20) , population INTEGER);")
+        self.mysql_cursor.execute("CREATE TABLE employees_test_1 (city_id INTEGER, "
+                                  "first_name CHAR(20), last_name CHAR(20), phone_number INTEGER);")
+
+        self.mysql_cursor.executemany("INSERT INTO city_test_1(name, population) "
+                                      "VALUES (%(name)s, %(population)s);", CITY_DATA)
+        self.mysql_cursor.executemany("INSERT INTO employees_test_1(city_id, first_name, last_name, phone_number) "
+                                      "VALUES (%(city_id)s, %(first_name)s, %(last_name)s, %(phone_number)s)",
+                                      EMPLOYEES_DATA)
+
+    def scan_mysql(self, first_name, last_name, phone_number):
+        if self.check_fields(first_name, last_name, phone_number):
+            return self.view.output(self.check_fields(first_name, last_name, phone_number))
+        self.view.show_sql("SELECT * FROM employees_test_1 "
+                           "INNER JOIN city_test_1 ON (employees_test_1.city_id = city_test_1.id)"
+                           "WHERE first_name='{}' OR last_name='{}' OR phone_number='{}';"
+                           .format(first_name, last_name, phone_number),
+                           self.mysql_conn, 'employees')
