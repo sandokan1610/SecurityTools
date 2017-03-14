@@ -80,3 +80,12 @@ class DataManager:
                     csv_row.extend(['Unknown', 'Unknown'])
                 writer.writerow(csv_row)
         return 'Scan results saved to: "{}"'.format(self.file_path.format(file_name))
+
+    def save_sql(self, search, file_name):
+        with open(self.file_path.format(file_name), 'w', newline='') as csv_file:
+            writer = csv.writer(csv_file, delimiter=';')
+            headers = ['city_id', 'first_name', 'last_name', 'phone_number', 'employee_id', 'city', 'population']
+            writer.writerow(headers)
+            for row in search:
+                writer.writerow(row)
+        return 'Scan results saved to: "{}"'.format(self.file_path.format(file_name))

@@ -35,11 +35,6 @@ class Model:
         if os.path.exists('credentials.json'):
             with open('credentials.json', 'r') as file:
                 self.credentials = json.loads(file.read())
-        self.mysql_conn = mysql.connector.connect(user='root', password=' ', host='127.0.0.1', database='test')
-        self.mysql_cursor = self.mysql_conn.cursor()
-        self.mysql_prepare()
-        self.mssql_conn = pymssql.connect('localhost', 'SA', '*328195674q', 'test')
-        self.mssql_cursor = self.mssql_conn.cursor()
 
     @staticmethod
     def check_host(host):
@@ -172,25 +167,65 @@ class Model:
         if not phone_number.isdigit():
             return 'Phone number must be an integer.'
 
-    def mysql_prepare(self):
-        self.mysql_cursor.execute("DROP TABLE IF EXISTS city_test_1, employees_test_1;")
+    @staticmethod
+    def connect_mysql():
+        conn = mysql.connector.connect(user='root', password=' ', host='127.0.0.1', database='test')
+        cursor = conn.cursor()
+        return conn, cursor
 
-        self.mysql_cursor.execute("CREATE TABLE city_test_1 (id INTEGER AUTO_INCREMENT PRIMARY KEY, "
-                                  "name CHAR(20) , population INTEGER);")
-        self.mysql_cursor.execute("CREATE TABLE employees_test_1 (city_id INTEGER, "
-                                  "first_name CHAR(20), last_name CHAR(20), phone_number INTEGER);")
+    @staticmethod
+    def mysql_prepare(cursor):
+        cursor.execute("DROP TABLE IF EXISTS city_test_1, employees_test_1;")
 
-        self.mysql_cursor.executemany("INSERT INTO city_test_1(name, population) "
-                                      "VALUES (%(name)s, %(population)s);", CITY_DATA)
-        self.mysql_cursor.executemany("INSERT INTO employees_test_1(city_id, first_name, last_name, phone_number) "
-                                      "VALUES (%(city_id)s, %(first_name)s, %(last_name)s, %(phone_number)s)",
-                                      EMPLOYEES_DATA)
+        cursor.execute("CREATE TABLE city_test_1 (id INTEGER AUTO_INCREMENT PRIMARY KEY, name CHAR(20) , "
+                       "population INTEGER);")
+        cursor.execute("CREATE TABLE employees_test_1 (city_id INTEGER, first_name CHAR(20), last_name CHAR(20), "
+                       "phone_number INTEGER);")
 
-    def scan_mysql(self, first_name, last_name, phone_number):
+        cursor.executemany("INSERT INTO city_test_1(name, population) VALUES (%(name)s, %(population)s);", CITY_DATA)
+        cursor.executemany("INSERT INTO employees_test_1(city_id, first_name, last_name, phone_number) "
+                           "VALUES (%(city_id)s, %(first_name)s, %(last_name)s, %(phone_number)s)", EMPLOYEES_DATA)
+
+    def scan_mysql(self, conn, cursor, first_name, last_name, phone_number):
         if self.check_fields(first_name, last_name, phone_number):
             return self.view.output(self.check_fields(first_name, last_name, phone_number))
-        self.view.show_sql("SELECT * FROM employees_test_1 "
-                           "INNER JOIN city_test_1 ON (employees_test_1.city_id = city_test_1.id)"
-                           "WHERE first_name='{}' OR last_name='{}' OR phone_number='{}';"
-                           .format(first_name, last_name, phone_number),
-                           self.mysql_conn, 'employees')
+        self.mysql_prepare(cursor)
+        query = "SELECT * FROM employees_test_1 " \
+                "INNER JOIN city_test_1 ON (employees_test_1.city_id = city_test_1.id) " \
+                "WHERE first_name='{}' OR last_name='{}' OR phone_number='{}';".format(first_name, last_name,
+                                                                                       phone_number)
+        self.view.show_sql(query, conn, 'employees')
+        cursor.execute(query)
+        search = cursor.fetchall()
+        return self.dm.save_sql(search, 'mysql')
+
+    @staticmethod
+    def connect_mssql():
+        conn = pymssql.connect('localhost', 'SA', '*328195674q', 'test')
+        cursor = conn.cursor()
+        return conn, cursor
+
+    @staticmethod
+    def mssql_prepare(cursor):
+        cursor.execute("DROP TABLE IF EXISTS city_test_1, employees_test_1;")
+
+        cursor.execute("CREATE TABLE city_test_1 (id INT IDENTITY(1,1) PRIMARY KEY, name VARCHAR(7), population INT);")
+        cursor.execute("CREATE TABLE employees_test_1 (city_id INT, first_name VARCHAR(5), last_name VARCHAR(9), "
+                       "phone_number INT);")
+
+        cursor.executemany("INSERT INTO city_test_1(name, population) VALUES (%(name)s, %(population)s);", CITY_DATA)
+        cursor.executemany("INSERT INTO employees_test_1(city_id, first_name, last_name, phone_number) "
+                           "VALUES (%(city_id)s, %(first_name)s, %(last_name)s, %(phone_number)s);", EMPLOYEES_DATA)
+
+    def scan_mssql(self, conn, cursor, first_name, last_name, phone_number):
+        if self.check_fields(first_name, last_name, phone_number):
+            return self.view.output(self.check_fields(first_name, last_name, phone_number))
+        self.mssql_prepare(cursor)
+        query = "SELECT * FROM employees_test_1 " \
+                "INNER JOIN city_test_1 ON (employees_test_1.city_id = city_test_1.id) " \
+                "WHERE first_name='{}' OR last_name='{}' OR phone_number='{}';".format(first_name, last_name,
+                                                                                       phone_number)
+        self.view.show_sql(query, conn, 'employees')
+        cursor.execute(query)
+        search = cursor.fetchall()
+        return self.dm.save_sql(search, 'mssql')

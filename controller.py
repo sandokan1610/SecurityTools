@@ -14,7 +14,7 @@ class Controller:
                         }
 
         self.db_sql = {'1': self.scan_mysql,
-                       #'2': self.scan_mssql,
+                       '2': self.scan_mssql,
                        #'3': self.scan_oracle,
                        #'4': self.scan_all_sql,
                        '0': self.session
@@ -35,7 +35,6 @@ class Controller:
         command = self.view.inp('What db do you want to scan?\n'
                                 '1 - MySQL\n'
                                 '2 - MSSQL\n'
-                                '3 - Oracle\n'
                                 '0 - Back\n')
         self.do_actions(command, 'sql')
         self.session()
@@ -47,14 +46,19 @@ class Controller:
         return first_name, last_name, phone_number
 
     def scan_mysql(self):
-        self.model.scan_mysql(*self.contact_elements())
+        conn, cursor = self.model.connect_mysql()
+        self.view.output(self.model.scan_mysql(conn, cursor, *self.contact_elements()))
+
+    def scan_mssql(self):
+        conn, cursor = self.model.connect_mssql()
+        self.view.output(self.model.scan_mssql(conn, cursor, *self.contact_elements()))
 
     def exit_program(self):
         self.view.output('Program is closed. Have a nice day!')
         exit()
 
     def session(self):
-        self.view.output('This is single host scanner and vk scanner.\n')
+        self.view.output('This is remote host, social, network and database scanner.\n')
         while True:
             command = self.view.inp('What do you want to do?\n'
                                     '1 - Scan remote host\n'
@@ -72,7 +76,7 @@ class Controller:
                 self.actions[command]()
         except Exception as e:
             # raise e # debug
-            return self.view.output('Wrong command: {}'.format(e))
+            return self.view.output('Error: {}'.format(e))
 
 
 if __name__ == '__main__':
