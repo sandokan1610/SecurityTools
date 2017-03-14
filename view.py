@@ -19,7 +19,7 @@ class View:
     def output_ld(res):
         for x in res:
             print('{} {} - https://www.linkedin.com/in/{}/'
-                  .format(x.get('firstName', ''), x.get('lastName', 'Участник Linkedin'), x['publicIdentifier']))
+                  .format(x.get('firstName', ''), x.get('lastName', 'Linkedin User'), x['publicIdentifier']))
 
     @staticmethod
     def show_sql(query, conn, name):
