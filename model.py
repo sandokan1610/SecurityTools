@@ -167,9 +167,11 @@ class Model:
         if not phone_number.isdigit():
             return 'Phone number must be an integer.'
 
-    @staticmethod
-    def connect_mysql():
-        conn = mysql.connector.connect(user='root', password=' ', host='127.0.0.1', database='test')
+    def connect_mysql(self):
+        conn = mysql.connector.connect(user=self.credentials['mysql_user'],
+                                       password=self.credentials['mysql_password'],
+                                       host=self.credentials['mysql_host'],
+                                       database=self.credentials['mysql_database'])
         cursor = conn.cursor()
         return conn, cursor
 
@@ -199,9 +201,11 @@ class Model:
         search = cursor.fetchall()
         return self.dm.save_sql(search, 'mysql')
 
-    @staticmethod
-    def connect_mssql():
-        conn = pymssql.connect('localhost', 'SA', '*328195674q', 'test')
+    def connect_mssql(self):
+        conn = pymssql.connect(self.credentials['mssql_host'],
+                               self.credentials['mssql_user'],
+                               self.credentials['mysql_password'],
+                               self.credentials['mysql_database'])
         cursor = conn.cursor()
         return conn, cursor
 
