@@ -7,7 +7,7 @@ import json
 import yaml
 
 import nmap
-import psycopg2 as psycopg2
+import psycopg2
 import vk_requests
 import facebook
 from selenium import webdriver
