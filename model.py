@@ -6,6 +6,7 @@ import logging
 import json
 
 import nmap
+import psycopg2 as psycopg2
 import vk_requests
 import facebook
 from selenium import webdriver
@@ -48,35 +49,35 @@ class Model:
         start = time.time()
         subdomains = self.scan_remote_host_dnsmap(host)
         self.scan_remote_host_nmap(subdomains)
-        return 'completion time: {} second(s)'.format(round(time.time() - start, 2))
+        return 'Completion time: {} second(s)'.format(round(time.time() - start, 2))
 
     def scan_remote_host_dnsmap(self, host):
         if not self.check_host(host):
             return 'Wrong host: "{}"'.format(host)
         self.view.output('Scanning for subdomains...')
-        os.system('dnsmap {} >> dnsmap.txt'.format(host))
+        os.system('dnsmap {} -r dnsmap.txt'.format(host))
         with open('dnsmap.txt') as f:
             dnsmap_scan = f.read()
         os.remove('dnsmap.txt')
-        self.view.output(dnsmap_scan)
         subdomains = re.findall(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", dnsmap_scan)
         if '127.0.0.1' in subdomains:
             del subdomains[subdomains.index('127.0.0.1')]
         return subdomains
 
     def scan_remote_host_nmap(self, subdomains):
-        self.view.output('Scanning founded subdomains...')
-        for inx, subdomain in enumerate(subdomains, 1):
-            self.scanner.scan(subdomain, '22-443', '-sV -A')
-            self.dm.save_csv(self.scanner, subdomain, 'remote_host')
-            self.view.output('{}% completed...'.format(round(inx / len(subdomains) * 100)))
-        else:
-            self.view.output('Scan results saved to: "{}"'.format(self.dm.file_path.format('remote_host')))
+        self.view.output('\nScanning subdomains...')
+        self.scanner.scan(hosts=' '.join(subdomains),
+                                ports='22-443',
+                                arguments='-sV -A -T4')
+        self.dm.save_csv_remote_host(self.scanner, 'remote_host')
+        self.view.output('Scan results saved to: "{}"'.format(self.dm.file_path.format('remote_host')))
 
     def scan_network(self, network):
         self.view.output('Scanning network...')
-        self.scanner.scan(network or '192.168.1.0/24', arguments='-A')
-        return self.dm.save_csv_device(self.scanner, 'devices')
+        start = time.time()
+        self.scanner.scan(network or '192.168.1.0/24', arguments='-O -T5')
+        self.view.output('Completion time: {} second(s)'.format(round(time.time() - start, 2)))
+        return self.dm.save_csv_network(self.scanner, 'network')
 
     def scan_social(self, query):
         if not hasattr(self, 'credentials'):
@@ -176,7 +177,7 @@ class Model:
         return conn, cursor
 
     @staticmethod
-    def mysql_prepare(cursor):
+    def prepare_mysql(cursor):
         cursor.execute("DROP TABLE IF EXISTS city_test_1, employees_test_1;")
 
         cursor.execute("CREATE TABLE city_test_1 (id INTEGER AUTO_INCREMENT PRIMARY KEY, name CHAR(20) , "
@@ -190,8 +191,8 @@ class Model:
 
     def scan_mysql(self, conn, cursor, first_name, last_name, phone_number):
         if self.check_fields(first_name, last_name, phone_number):
-            return self.view.output(self.check_fields(first_name, last_name, phone_number))
-        self.mysql_prepare(cursor)
+            return self.check_fields(first_name, last_name, phone_number)
+        self.prepare_mysql(cursor)
         query = "SELECT * FROM employees_test_1 " \
                 "INNER JOIN city_test_1 ON (employees_test_1.city_id = city_test_1.id) " \
                 "WHERE first_name='{}' OR last_name='{}' OR phone_number='{}';".format(first_name, last_name,
@@ -202,15 +203,15 @@ class Model:
         return self.dm.save_sql(search, 'mysql')
 
     def connect_mssql(self):
-        conn = pymssql.connect(self.credentials['mssql_host'],
-                               self.credentials['mssql_user'],
-                               self.credentials['mysql_password'],
-                               self.credentials['mysql_database'])
+        conn = pymssql.connect(host=self.credentials['mssql_host'],
+                               user=self.credentials['mssql_user'],
+                               password=self.credentials['mssql_password'],
+                               database=self.credentials['mssql_database'])
         cursor = conn.cursor()
         return conn, cursor
 
     @staticmethod
-    def mssql_prepare(cursor):
+    def prepare_mssql(cursor):
         cursor.execute("DROP TABLE IF EXISTS city_test_1, employees_test_1;")
 
         cursor.execute("CREATE TABLE city_test_1 (id INT IDENTITY(1,1) PRIMARY KEY, name VARCHAR(7), population INT);")
@@ -223,8 +224,8 @@ class Model:
 
     def scan_mssql(self, conn, cursor, first_name, last_name, phone_number):
         if self.check_fields(first_name, last_name, phone_number):
-            return self.view.output(self.check_fields(first_name, last_name, phone_number))
-        self.mssql_prepare(cursor)
+            return self.check_fields(first_name, last_name, phone_number)
+        self.prepare_mssql(cursor)
         query = "SELECT * FROM employees_test_1 " \
                 "INNER JOIN city_test_1 ON (employees_test_1.city_id = city_test_1.id) " \
                 "WHERE first_name='{}' OR last_name='{}' OR phone_number='{}';".format(first_name, last_name,
@@ -233,3 +234,36 @@ class Model:
         cursor.execute(query)
         search = cursor.fetchall()
         return self.dm.save_sql(search, 'mssql')
+
+    def connect_postgresql(self):
+        conn = psycopg2.connect(database=self.credentials['postgresql_database'],
+                                user=self.credentials['postgresql_user'],
+                                password=self.credentials['postgresql_password'],
+                                host=self.credentials['postgresql_host'])
+        cursor = conn.cursor()
+        return conn, cursor
+
+    @staticmethod
+    def prepare_postgresql(cursor):
+        cursor.execute("DROP TABLE IF EXISTS city_test_1, employees_test_1;")
+
+        cursor.execute("CREATE TABLE city_test_1 (id SERIAL PRIMARY KEY, name CHAR(7), population INTEGER);")
+        cursor.execute("CREATE TABLE employees_test_1 (city_id INTEGER, first_name CHAR(5), last_name CHAR(9), "
+                       "phone_number INTEGER);")
+
+        cursor.executemany("INSERT INTO city_test_1(name, population) VALUES (%(name)s, %(population)s);", CITY_DATA)
+        cursor.executemany("INSERT INTO employees_test_1(city_id, first_name, last_name, phone_number) "
+                           "VALUES (%(city_id)s, %(first_name)s, %(last_name)s, %(phone_number)s)", EMPLOYEES_DATA)
+
+    def scan_postgresql(self, conn, cursor, first_name, last_name, phone_number):
+        if self.check_fields(first_name, last_name, phone_number):
+            return self.check_fields(first_name, last_name, phone_number)
+        self.prepare_postgresql(cursor)
+        query = "SELECT * FROM employees_test_1 " \
+                "INNER JOIN city_test_1 ON (employees_test_1.city_id = city_test_1.id) " \
+                "WHERE first_name='{}' OR last_name='{}' OR phone_number='{}';".format(first_name, last_name,
+                                                                                       phone_number)
+        self.view.show_sql(query, conn, 'employees')
+        cursor.execute(query)
+        search = cursor.fetchall()
+        return self.dm.save_sql(search, 'postgresql')

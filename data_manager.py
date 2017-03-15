@@ -5,11 +5,11 @@ import os
 class DataManager:
     file_path = 'scan_{}.csv'
 
-    def save_csv(self, scanner, host, file_name):
+    def save_csv_remote_host(self, scanner, file_name):
         if not os.path.exists(self.file_path.format(file_name)) \
                 or not os.stat(self.file_path.format(file_name)).st_size:
             self.csv_write_header(self.file_path.format(file_name))
-        self.csv_write_row(scanner, host, self.file_path.format(file_name))
+        self.csv_write_row(scanner, self.file_path.format(file_name))
 
     @staticmethod
     def csv_write_header(file_path):
@@ -29,19 +29,22 @@ class DataManager:
                 'version',
                 'conf',
                 'cpe',
-                'os'
+                'os',
+                'type'
             ]
             writer.writerow(csv_header)
 
     @staticmethod
-    def csv_write_row(scanner, host, file_path):
+    def csv_write_row(scanner, file_path):
         with open(file_path, 'a', newline='') as csv_file:
             writer = csv.writer(csv_file, delimiter=';')
-            if host in scanner.__dict__['_scan_result']['scan']:
+            for host in scanner.all_hosts():
                 if 'osmatch' in scanner[host] and scanner[host]['osmatch']:
                     os_name = scanner[host]['osmatch'][0]['name']
+                    device_type = scanner[host]['osmatch'][0]['osclass'][0]['type']
                 else:
-                    os_name = ''
+                    os_name = 'Undefined'
+                    device_type = 'Undefined'
                 for proto in scanner[host].all_protocols():
                     if proto not in ['tcp', 'udp']:
                         continue
@@ -62,11 +65,11 @@ class DataManager:
                                 scanner[host][proto][port]['version'],
                                 scanner[host][proto][port]['conf'],
                                 scanner[host][proto][port]['cpe'],
-                                os_name
+                                os_name, device_type
                             ]
                             writer.writerow(csv_row)
 
-    def save_csv_device(self, scanner, file_name):
+    def save_csv_network(self, scanner, file_name):
         with open(self.file_path.format(file_name), 'w', newline='') as csv_file:
             writer = csv.writer(csv_file, delimiter=';')
             headers = ['host', 'hostname', 'os', 'type']
@@ -77,7 +80,7 @@ class DataManager:
                     csv_row.append(scanner[host]['osmatch'][0]['name'])
                     csv_row.append(scanner[host]['osmatch'][0]['osclass'][0]['type'])
                 else:
-                    csv_row.extend(['Unknown', 'Unknown'])
+                    csv_row.extend(['Undefined', 'Undefined'])
                 writer.writerow(csv_row)
         return 'Scan results saved to: "{}"'.format(self.file_path.format(file_name))
 

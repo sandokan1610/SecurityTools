@@ -15,8 +15,7 @@ class Controller:
 
         self.db_sql = {'1': self.scan_mysql,
                        '2': self.scan_mssql,
-                       #'3': self.scan_oracle,
-                       #'4': self.scan_all_sql,
+                       '3': self.scan_postgresql,
                        '0': self.session
                        }
 
@@ -35,6 +34,7 @@ class Controller:
         command = self.view.inp('What db do you want to scan?\n'
                                 '1 - MySQL\n'
                                 '2 - MSSQL\n'
+                                '3 - PostgreSQL\n'
                                 '0 - Back\n')
         self.do_actions(command, 'sql')
         self.session()
@@ -52,6 +52,15 @@ class Controller:
     def scan_mssql(self):
         conn, cursor = self.model.connect_mssql()
         self.view.output(self.model.scan_mssql(conn, cursor, *self.contact_elements()))
+
+    def scan_postgresql(self):
+        conn, cursor = self.model.connect_postgresql()
+        self.view.output(self.model.scan_postgresql(conn, cursor, *self.contact_elements()))
+
+    def scan_all_sql(self):
+        conn, cursor = self.model.connect_mysql()
+        first_name, last_name, phone_number = self.contact_elements()
+        self.view.output(self.model.scan_all_sql(conn, cursor, first_name, last_name, phone_number))
 
     def exit_program(self):
         self.view.output('Program is closed. Have a nice day!')
