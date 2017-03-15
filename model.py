@@ -4,6 +4,7 @@ import re
 import time
 import logging
 import json
+import yaml
 
 import nmap
 import psycopg2 as psycopg2
@@ -17,16 +18,6 @@ import pymssql
 from view import View
 from data_manager import DataManager
 
-EMPLOYEES_DATA = ({'city_id': 1, 'first_name': 'Vadim', 'last_name': 'Kuznetsov', 'phone_number': '0101'},
-                  {'city_id': 2, 'first_name': 'Ivan', 'last_name': 'Petrov', 'phone_number': '102'},
-                  {'city_id': 3, 'first_name': 'Petr', 'last_name': 'Ivanovich', 'phone_number': '102'},
-                  )
-
-CITY_DATA = ({'name': 'Kiev', 'population': 2900920},
-             {'name': 'Kharkov', 'population': 1430885},
-             {'name': 'Odessa', 'population': 1016515},
-             )
-
 
 class Model:
     def __init__(self):
@@ -36,6 +27,9 @@ class Model:
         if os.path.exists('credentials.json'):
             with open('credentials.json', 'r') as file:
                 self.credentials = json.loads(file.read())
+
+        with open('sql_data.yml', 'r') as config:
+            self.sql_data = yaml.load(config)
 
     @staticmethod
     def check_host(host):
@@ -176,8 +170,7 @@ class Model:
         cursor = conn.cursor()
         return conn, cursor
 
-    @staticmethod
-    def prepare_mysql(cursor):
+    def prepare_mysql(self, cursor):
         cursor.execute("DROP TABLE IF EXISTS city_test_1, employees_test_1;")
 
         cursor.execute("CREATE TABLE city_test_1 (id INTEGER AUTO_INCREMENT PRIMARY KEY, name CHAR(20) , "
@@ -185,9 +178,11 @@ class Model:
         cursor.execute("CREATE TABLE employees_test_1 (city_id INTEGER, first_name CHAR(20), last_name CHAR(20), "
                        "phone_number INTEGER);")
 
-        cursor.executemany("INSERT INTO city_test_1(name, population) VALUES (%(name)s, %(population)s);", CITY_DATA)
+        cursor.executemany("INSERT INTO city_test_1(name, population) VALUES (%(name)s, %(population)s);",
+                           self.sql_data['city_data'])
         cursor.executemany("INSERT INTO employees_test_1(city_id, first_name, last_name, phone_number) "
-                           "VALUES (%(city_id)s, %(first_name)s, %(last_name)s, %(phone_number)s)", EMPLOYEES_DATA)
+                           "VALUES (%(city_id)s, %(first_name)s, %(last_name)s, %(phone_number)s)",
+                           self.sql_data['employees_data'])
 
     def scan_mysql(self, conn, cursor, first_name, last_name, phone_number):
         if self.check_fields(first_name, last_name, phone_number):
@@ -210,17 +205,18 @@ class Model:
         cursor = conn.cursor()
         return conn, cursor
 
-    @staticmethod
-    def prepare_mssql(cursor):
+    def prepare_mssql(self, cursor):
         cursor.execute("DROP TABLE IF EXISTS city_test_1, employees_test_1;")
 
         cursor.execute("CREATE TABLE city_test_1 (id INT IDENTITY(1,1) PRIMARY KEY, name VARCHAR(7), population INT);")
         cursor.execute("CREATE TABLE employees_test_1 (city_id INT, first_name VARCHAR(5), last_name VARCHAR(9), "
                        "phone_number INT);")
 
-        cursor.executemany("INSERT INTO city_test_1(name, population) VALUES (%(name)s, %(population)s);", CITY_DATA)
+        cursor.executemany("INSERT INTO city_test_1(name, population) VALUES (%(name)s, %(population)s);",
+                           self.sql_data['city_data'])
         cursor.executemany("INSERT INTO employees_test_1(city_id, first_name, last_name, phone_number) "
-                           "VALUES (%(city_id)s, %(first_name)s, %(last_name)s, %(phone_number)s);", EMPLOYEES_DATA)
+                           "VALUES (%(city_id)s, %(first_name)s, %(last_name)s, %(phone_number)s);",
+                           self.sql_data['employees_data'])
 
     def scan_mssql(self, conn, cursor, first_name, last_name, phone_number):
         if self.check_fields(first_name, last_name, phone_number):
@@ -243,17 +239,18 @@ class Model:
         cursor = conn.cursor()
         return conn, cursor
 
-    @staticmethod
-    def prepare_postgresql(cursor):
+    def prepare_postgresql(self, cursor):
         cursor.execute("DROP TABLE IF EXISTS city_test_1, employees_test_1;")
 
         cursor.execute("CREATE TABLE city_test_1 (id SERIAL PRIMARY KEY, name CHAR(7), population INTEGER);")
         cursor.execute("CREATE TABLE employees_test_1 (city_id INTEGER, first_name CHAR(5), last_name CHAR(9), "
                        "phone_number INTEGER);")
 
-        cursor.executemany("INSERT INTO city_test_1(name, population) VALUES (%(name)s, %(population)s);", CITY_DATA)
+        cursor.executemany("INSERT INTO city_test_1(name, population) VALUES (%(name)s, %(population)s);",
+                           self.sql_data['city_data'])
         cursor.executemany("INSERT INTO employees_test_1(city_id, first_name, last_name, phone_number) "
-                           "VALUES (%(city_id)s, %(first_name)s, %(last_name)s, %(phone_number)s)", EMPLOYEES_DATA)
+                           "VALUES (%(city_id)s, %(first_name)s, %(last_name)s, %(phone_number)s)",
+                           self.sql_data['employees_data'])
 
     def scan_postgresql(self, conn, cursor, first_name, last_name, phone_number):
         if self.check_fields(first_name, last_name, phone_number):

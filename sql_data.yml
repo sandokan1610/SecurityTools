@@ -1,0 +1,9 @@
+employees_data: [{"city_id": 1, "first_name": "Vadim", "last_name": "Kuznetsov", "phone_number": "0101"},
+                {"city_id": 2, "first_name": "Ivan", "last_name": "Petrov", "phone_number": "102"},
+                {"city_id": 3, "first_name": "Petr", "last_name": "Ivanovich", "phone_number": "102"}]
+
+
+city_data: [{"name": "Kiev", "population": 2900920},
+            {"name": "Kharkov", "population": 1430885},
+            {"name": "Odessa", "population": 1016515}]
+             
