@@ -13,8 +13,6 @@ class ScannerRemoteHost:
     def __init__(self):
         self.dm = DataManager()
         self.scanner = nmap.PortScanner()
-        if not os.path.exists('temp'):
-            os.makedirs('temp')
 
     @staticmethod
     def check_host(host):
