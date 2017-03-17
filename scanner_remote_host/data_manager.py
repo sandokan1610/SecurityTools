@@ -1,36 +1,31 @@
 import csv
 import os
+import yaml
 
 
 class DataManager:
-    file_path = 'scan_{}.csv'
+    def __init__(self):
+        with open('config.yml', 'r') as config:
+            self.config = yaml.load(config)
 
-    def save_csv_remote_host(self, scanner, file_name):
-        if not os.path.exists(self.file_path.format(file_name)) \
-                or not os.stat(self.file_path.format(file_name)).st_size:
-            self.csv_write_header(self.file_path.format(file_name))
-        self.csv_write_row(scanner, self.file_path.format(file_name))
+    def save_csv(self, scanner, file_name):
+        file_path = '{}scanner_{}.csv'.format(self.config['path_output'], file_name)
+        if not os.path.exists(file_path) \
+                or not os.stat(file_path).st_size:
+            self.csv_write_header(file_path)
+        self.csv_write_row(scanner, file_path)
+        return 'Scan results saved to: "{}"'.format(file_path)
 
     @staticmethod
     def csv_write_header(file_path):
         with open(file_path, 'w', newline='') as csv_file:
             writer = csv.writer(csv_file, delimiter=';')
             csv_header = [
-                'host',
-                'hostname',
-                'hostname_type',
-                'protocol',
-                'port',
-                'name',
-                'state',
-                'product',
-                'extrainfo',
-                'reason',
-                'version',
-                'conf',
-                'cpe',
-                'os',
-                'type'
+                'host', 'hostname', 'hostname_type',
+                'protocol', 'port', 'name',
+                'state', 'product', 'extra_info',
+                'reason', 'version', 'conf',
+                'cpe', 'os', 'type'
             ]
             writer.writerow(csv_header)
 
@@ -68,27 +63,3 @@ class DataManager:
                                 os_name, device_type
                             ]
                             writer.writerow(csv_row)
-
-    def save_csv_network(self, scanner, file_name):
-        with open(self.file_path.format(file_name), 'w', newline='') as csv_file:
-            writer = csv.writer(csv_file, delimiter=';')
-            headers = ['host', 'hostname', 'os', 'type']
-            writer.writerow(headers)
-            for host in scanner.all_hosts():
-                csv_row = [host, scanner[host]['hostnames'][0]['name']]
-                if 'osmatch' in scanner[host] and scanner[host]['osmatch']:
-                    csv_row.append(scanner[host]['osmatch'][0]['name'])
-                    csv_row.append(scanner[host]['osmatch'][0]['osclass'][0]['type'])
-                else:
-                    csv_row.extend(['Undefined', 'Undefined'])
-                writer.writerow(csv_row)
-        return 'Scan results saved to: "{}"'.format(self.file_path.format(file_name))
-
-    def save_sql(self, search, file_name):
-        with open(self.file_path.format(file_name), 'w', newline='') as csv_file:
-            writer = csv.writer(csv_file, delimiter=';')
-            headers = ['city_id', 'first_name', 'last_name', 'phone_number', 'employee_id', 'city', 'population']
-            writer.writerow(headers)
-            for row in search:
-                writer.writerow(row)
-        return 'Scan results saved to: "{}"'.format(self.file_path.format(file_name))

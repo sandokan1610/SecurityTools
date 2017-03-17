@@ -1,80 +1,81 @@
-from view import View
-from model import Model
+from view import output, inp
+from scanner_remote_host.model import ScannerRemoteHost
+from scanner_network.model import ScannerNetwork
+from scanner_social.model import ScannerSocial
+from scanner_databases.model import ScannerDatabase
 
 
 class Controller:
-    def __init__(self, _view_, _model):
-        self.view = _view_
-        self.model = _model
-        self.actions = {'1': self.scan_remote_host,
-                        '2': self.scan_network,
-                        '3': self.scan_social,
-                        '4': self.scan_sql,
+    def __init__(self):
+        self.scanner_remote_host = ScannerRemoteHost()
+        self.scanner_network = ScannerNetwork()
+        self.scanner_social = ScannerSocial()
+        self.scanner_databases = ScannerDatabase()
+        self.actions = {'1': self.run_scan_remote_host,
+                        '2': self.run_scan_network,
+                        '3': self.run_scan_social,
+                        '4': self.run_scan_sql,
                         '0': self.exit_program
                         }
 
-        self.db_sql = {'1': self.scan_mysql,
-                       '2': self.scan_mssql,
-                       '3': self.scan_postgresql,
+        self.db_sql = {'1': self.run_scan_mysql,
+                       '2': self.run_scan_mssql,
+                       '3': self.run_scan_postgresql,
                        '0': self.session
                        }
 
-    def scan_remote_host(self):
-        self.view.output(self.model.scan_remote_host(
-            self.view.inp('Please input an IP or Domain name that you want to scan.\n')))
+    def run_scan_remote_host(self):
+        self.scanner_remote_host.scan(inp('Please input an IP or Domain name that you want to scan.\n'))
 
-    def scan_network(self):
-        self.view.output(self.model.scan_network(
-            self.view.inp('Please input network that you want to scan or leave empty for 192.168.1.0/24.\n')))
+    def run_scan_network(self):
+        self.scanner_network.scan(inp('Please input network that you want to scan '
+                                      'or leave empty for 192.168.1.0/24.\n'))
 
-    def scan_social(self):
-        self.model.scan_social(self.view.inp('Please input person initials.\n'))
+    def run_scan_social(self):
+        self.scanner_social.scan(inp('Please input person initials.\n'))
 
-    def scan_sql(self):
-        command = self.view.inp('What db do you want to scan?\n'
-                                '1 - MySQL\n'
-                                '2 - MSSQL\n'
-                                '3 - PostgreSQL\n'
-                                '0 - Back\n')
+    def run_scan_sql(self):
+        command = inp('What db do you want to scan?\n'
+                      '1 - MySQL\n'
+                      '2 - MSSQL\n'
+                      '3 - PostgreSQL\n'
+                      '0 - Back\n')
         self.do_actions(command, 'sql')
         self.session()
 
-    def contact_elements(self):
-        first_name = self.view.inp('Insert first name\n')
-        last_name = self.view.inp('Insert last name\n')
-        phone_number = self.view.inp('Insert phone number\n')
+    @staticmethod
+    def contact_elements():
+        first_name = inp('Insert first name\n')
+        last_name = inp('Insert last name\n')
+        phone_number = inp('Insert phone number\n')
         return first_name, last_name, phone_number
 
-    def scan_mysql(self):
-        conn, cursor = self.model.connect_mysql()
-        self.view.output(self.model.scan_mysql(conn, cursor, *self.contact_elements()))
+    def run_scan_mysql(self):
+        conn, cursor = self.scanner_databases.connect_mysql()
+        output(self.scanner_databases.scan_mysql(conn, cursor, *self.contact_elements()))
 
-    def scan_mssql(self):
-        conn, cursor = self.model.connect_mssql()
-        self.view.output(self.model.scan_mssql(conn, cursor, *self.contact_elements()))
+    def run_scan_mssql(self):
+        conn, cursor = self.scanner_databases.connect_mssql()
+        output(self.scanner_databases.scan_mssql(conn, cursor, *self.contact_elements()))
 
-    def scan_postgresql(self):
-        conn, cursor = self.model.connect_postgresql()
-        self.view.output(self.model.scan_postgresql(conn, cursor, *self.contact_elements()))
+    def run_scan_postgresql(self):
+        conn, cursor = self.scanner_databases.connect_postgresql()
+        output(self.scanner_databases.scan_postgresql(conn, cursor, *self.contact_elements()))
 
-    def scan_all_sql(self):
-        conn, cursor = self.model.connect_mysql()
-        first_name, last_name, phone_number = self.contact_elements()
-        self.view.output(self.model.scan_all_sql(conn, cursor, first_name, last_name, phone_number))
-
-    def exit_program(self):
-        self.view.output('Program is closed. Have a nice day!')
+    @staticmethod
+    def exit_program():
+        output('Program is closed. Have a nice day!')
         exit()
 
     def session(self):
-        self.view.output('This is remote host, social, network and database scanner.\n')
+        output('This is remote host, social, network and database scanner.\n')
         while True:
-            command = self.view.inp('What do you want to do?\n'
-                                    '1 - Scan remote host\n'
-                                    '2 - Scan network\n'
-                                    '3 - Scan social\n'
-                                    '4 - Scan databases\n'
-                                    '0 - Exit\n')
+            command = inp('What do you want to do?\n'
+                          '1 - Scan remote host\n'
+                          '2 - Scan network\n'
+                          '3 - Scan social\n'
+                          '4 - Scan databases\n'
+                          '0 - Exit\n')
             self.do_actions(command)
 
     def do_actions(self, command, choose=''):
@@ -85,9 +86,9 @@ class Controller:
                 self.actions[command]()
         except Exception as e:
             # raise e # debug
-            return self.view.output('Error: {}'.format(e))
+            return output('Error: {}'.format(e))
 
 
 if __name__ == '__main__':
-    controller = Controller(View(), Model())
+    controller = Controller()
     controller.session()
