@@ -37,9 +37,8 @@ class ScannerRemoteHost:
             dnsmap_scan = f.read()
         os.remove('temp/dnsmap.txt')
         output(dnsmap_scan)
-        subdomains = re.findall(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", dnsmap_scan)
-        if '127.0.0.1' in subdomains:
-            del subdomains[subdomains.index('127.0.0.1')]
+        dnsmap_scan_no_localhost = dnsmap_scan.replace('127.0.0.1', '')
+        subdomains = re.findall(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", dnsmap_scan_no_localhost)
         return subdomains
 
     def scan_remote_host_nmap(self, subdomains):
